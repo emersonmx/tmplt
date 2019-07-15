@@ -38,8 +38,9 @@ def _get_script_path(template, script):
     return os.path.join(_get_template_path(template), script)
 
 
-def _run_script(path):
-    subprocess.run([path], shell=True, check=True)
+def _run_script(path, input=None):
+    encoded_input=bytes(json.dumps(input), 'utf8') if input else None
+    subprocess.run([path], shell=True, check=True, input=encoded_input)
 
 
 class TemplateRender(object):
@@ -67,10 +68,11 @@ class TemplateBuilder(object):
 
     def _get_project_configs(self):
         return json.loads(self.render.render_file(
-            _get_project_filename(self.template), **self.configs
+            _get_project_filename(self.template), configs=self.configs
         ))
 
     def build(self):
+        self._prompt_user()
         self._run_pre_make_script()
         project_template_path = _get_project_template_path(self.template)
         for root, dirs, files in os.walk(
@@ -81,6 +83,22 @@ class TemplateBuilder(object):
             for file in files:
                 self._build_file(root, file)
         self._run_post_make_script()
+
+    def _prompt_user(self):
+        for k, v in self.project_configs.items():
+            value = v
+            if isinstance(v, str):
+                value = click.prompt(
+                    'Please choose a value for "{}"'.format(k),
+                    default=v
+                )
+            elif isinstance(v, list):
+                value = click.prompt(
+                    'Please choose a value for "{}"'.format(k),
+                    default=v[0] if v else None,
+                    type=click.Choice(v)
+                )
+            self.project_configs[k] = value
 
     def _build_directory(self, root, directory):
         template_path = _get_project_template_path(self.template)
@@ -112,13 +130,13 @@ class TemplateBuilder(object):
         script_path = _get_script_path(self.template, PRE_MAKE_FILENAME)
         if not os.path.isfile(script_path):
             return
-        _run_script(script_path)
+        _run_script(script_path, self.project_configs)
 
     def _run_post_make_script(self):
         script_path = _get_script_path(self.template, POST_MAKE_FILENAME)
         if not os.path.isfile(script_path):
             return
-        _run_script(script_path)
+        _run_script(script_path, self.project_configs)
 
 
 @cli.command()
