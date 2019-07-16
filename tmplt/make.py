@@ -152,10 +152,18 @@ def make(templates):
 def _list_templates():
     click.echo('Templates available')
     for template in os.listdir(get_config_templates_path()):
+        show = False
         project_path = _get_project_path(template)
-        if not os.path.isfile(project_path):
-            continue
-        click.echo('- {} ({})'.format(os.path.basename(template), project_path))
+        if os.path.isfile(project_path):
+            show = True
+        if os.path.isdir(_get_project_template_path(template)):
+            show = True
+        if os.path.isdir(_get_script_path(template, PRE_MAKE_FILENAME)):
+            show = True
+        if os.path.isdir(_get_script_path(template, POST_MAKE_FILENAME)):
+            show = True
+        if show:
+            click.echo('- {} ({})'.format(os.path.basename(template), project_path))
 
 
 def _make_template(template):
