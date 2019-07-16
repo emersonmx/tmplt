@@ -67,9 +67,13 @@ class TemplateBuilder(object):
         self.project_configs = self._get_project_configs()
 
     def _get_project_configs(self):
-        return json.loads(self.render.render_file(
-            _get_project_filename(self.template), configs=self.configs
-        ))
+        project_path = _get_project_path(self.template)
+        if not os.path.isfile(project_path):
+            return {}
+        template_filepath = _get_project_filename(self.template)
+        return json.loads(
+            self.render.render_file(template_filepath, configs=self.configs)
+        )
 
     def build(self):
         self._prompt_user()
@@ -152,18 +156,13 @@ def make(templates):
 def _list_templates():
     click.echo('Templates available')
     for template in os.listdir(get_config_templates_path()):
-        show = False
+        if not _template_exists(template):
+            continue
+
         project_path = _get_project_path(template)
-        if os.path.isfile(project_path):
-            show = True
-        if os.path.isdir(_get_project_template_path(template)):
-            show = True
-        if os.path.isdir(_get_script_path(template, PRE_MAKE_FILENAME)):
-            show = True
-        if os.path.isdir(_get_script_path(template, POST_MAKE_FILENAME)):
-            show = True
-        if show:
-            click.echo('- {} ({})'.format(os.path.basename(template), project_path))
+        click.echo(
+            '- {} ({})'.format(os.path.basename(template), project_path)
+        )
 
 
 def _make_template(template):
@@ -179,7 +178,16 @@ def _throw_if_template_not_exists(template):
 
 
 def _template_exists(template):
-    return os.path.isfile(_get_project_path(template))
+    project_path = _get_project_path(template)
+    if os.path.isfile(project_path):
+        return True
+    if os.path.isdir(_get_project_template_path(template)):
+        return True
+    if os.path.isfile(_get_script_path(template, PRE_MAKE_FILENAME)):
+        return True
+    if os.path.isfile(_get_script_path(template, POST_MAKE_FILENAME)):
+        return True
+    return False
 
 
 def _build_template(template):
