@@ -155,7 +155,7 @@ def make(templates):
 
 def _list_templates():
     click.echo('Templates available')
-    for template in os.listdir(get_config_templates_path()):
+    for template in sorted(os.listdir(get_config_templates_path())):
         if not _template_exists(template):
             continue
 
