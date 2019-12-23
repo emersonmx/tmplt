@@ -1,56 +1,68 @@
 import os
 import json
 import click
-from deepmerge import always_merger
-from tmplt import cli
 
-CONFIG_PATH = click.get_app_dir('tmplt')
-CONFIG_FILENAME = 'tmplt.json'
-CONFIG_FILEPATH = os.path.join(CONFIG_PATH, CONFIG_FILENAME)
+_CONFIG_PATH = click.get_app_dir('tmplt')
+_CONFIG_FILENAME = 'tmplt.json'
+_CONFIG_FILEPATH = os.path.join(_CONFIG_PATH, _CONFIG_FILENAME)
+
+_cached_config = None
 
 
-@cli.group()
+@click.group()
 def config():
     pass
 
 
 @config.command()
 def dump():
-    if not os.path.isfile(CONFIG_FILEPATH):
-        click.echo(dumps_json(get_default_configs()))
+    if not os.path.isfile(_CONFIG_FILEPATH):
+        click.echo(_dumps_json(_get_default_configs()))
         return
-    click.echo(dumps_json(get_merged_configs()))
+    click.echo(_dumps_json(_get_merged_configs()))
 
 
-def dumps_json(obj):
+def setup():
+    if os.path.isfile(_CONFIG_FILEPATH):
+        return
+
+    os.makedirs(_CONFIG_PATH, exist_ok=True)
+    configs = _get_merged_configs()
+    with open(_CONFIG_FILEPATH, 'w+') as cf:
+        cf.write(_dumps_json(configs))
+        click.echo('Config file created in {}'.format(_CONFIG_FILEPATH))
+
+    template_path = get_config('templates_path')
+    if not os.path.isdir(template_path):
+        os.makedirs(template_path, exist_ok=True)
+
+
+def _dumps_json(obj):
     return json.dumps(obj, indent=4)
 
 
-def get_default_configs():
-    return {
-        'templates_path': os.path.join(CONFIG_PATH, 'templates')
-    }
+def _get_merged_configs():
+    global _cached_config
+    if not _cached_config:
+        from deepmerge import always_merger
+        _cached_config = always_merger.merge(
+            _get_default_configs(), get_configs()
+        )
+    return _cached_config
+
+
+def _get_default_configs():
+    return {'templates_path': os.path.join(_CONFIG_PATH, 'templates')}
 
 
 def get_configs():
-    config_file = os.path.join(CONFIG_PATH, CONFIG_FILENAME)
+    config_file = os.path.join(_CONFIG_PATH, _CONFIG_FILENAME)
     if not os.path.isfile(config_file):
         return {}
     with open(config_file, 'r') as c:
         return json.load(c)
 
 
-def get_merged_configs():
-    return always_merger.merge(
-        get_default_configs(),
-        get_configs()
-    )
-
-
 def get_config(config):
-    configs = get_merged_configs()
+    configs = _get_merged_configs()
     return configs.get(config)
-
-
-def get_config_templates_path():
-    return get_config('templates_path')

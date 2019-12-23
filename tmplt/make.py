@@ -5,32 +5,45 @@ import click
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from tmplt import cli
-from tmplt.config import CONFIG_FILENAME
-from tmplt.config import get_config_templates_path, get_configs
+from tmplt.config import get_config, get_configs
+
+_TEMPLATES_PATH = get_config('templates_path')
+_PROJECT_FILENAME = 'project.json'
+_PROJECT_TEMPLATE_DIRNAME = 'template'
+_PRE_MAKE_FILENAME = 'pre-make'
+_POST_MAKE_FILENAME = 'post-make'
 
 
-PROJECT_FILENAME = 'project.json'
-PROJECT_TEMPLATE_DIRNAME = 'template'
-PRE_MAKE_FILENAME = 'pre-make'
-POST_MAKE_FILENAME = 'post-make'
+@click.group()
+def make():
+    pass
+
+
+@make.command()
+@click.argument('templates', nargs=-1)
+def make(templates):
+    if not templates:
+        _list_templates()
+        return
+    for template in templates:
+        _make_template(template)
 
 
 def _get_project_path(template):
-    return os.path.join(_get_template_path(template), PROJECT_FILENAME)
+    return os.path.join(_get_template_path(template), _PROJECT_FILENAME)
 
 
 def _get_project_filename(template):
-    return os.path.join(template, PROJECT_FILENAME)
+    return os.path.join(template, _PROJECT_FILENAME)
 
 
 def _get_template_path(template):
-    return os.path.join(get_config_templates_path(), template)
+    return os.path.join(_TEMPLATES_PATH, template)
 
 
 def _get_project_template_path(template):
     return os.path.join(
-        _get_template_path(template), PROJECT_TEMPLATE_DIRNAME
+        _get_template_path(template), _PROJECT_TEMPLATE_DIRNAME
     )
 
 
@@ -39,7 +52,7 @@ def _get_script_path(template, script):
 
 
 def _run_script(path, input=None):
-    encoded_input=bytes(json.dumps(input), 'utf8') if input else None
+    encoded_input = bytes(json.dumps(input), 'utf8') if input else None
     subprocess.run([path], shell=True, check=True, input=encoded_input)
 
 
@@ -93,8 +106,7 @@ class TemplateBuilder(object):
             value = v
             if isinstance(v, str):
                 value = click.prompt(
-                    'Please choose a value for "{}"'.format(k),
-                    default=v
+                    'Please choose a value for "{}"'.format(k), default=v
                 )
             elif isinstance(v, list):
                 value = click.prompt(
@@ -116,9 +128,7 @@ class TemplateBuilder(object):
 
     def _build_file(self, root, file):
         absfilepath = os.path.join(root, file)
-        template_filepath = os.path.relpath(
-            absfilepath, get_config_templates_path()
-        )
+        template_filepath = os.path.relpath(absfilepath, _TEMPLATES_PATH)
         project_template_path = _get_project_template_path(self.template)
         relfile = os.path.relpath(absfilepath, project_template_path)
         rendered_relfile = self.render.render_string(
@@ -131,31 +141,21 @@ class TemplateBuilder(object):
             f.write(content)
 
     def _run_pre_make_script(self):
-        script_path = _get_script_path(self.template, PRE_MAKE_FILENAME)
+        script_path = _get_script_path(self.template, _PRE_MAKE_FILENAME)
         if not os.path.isfile(script_path):
             return
         _run_script(script_path, self.project_configs)
 
     def _run_post_make_script(self):
-        script_path = _get_script_path(self.template, POST_MAKE_FILENAME)
+        script_path = _get_script_path(self.template, _POST_MAKE_FILENAME)
         if not os.path.isfile(script_path):
             return
         _run_script(script_path, self.project_configs)
 
 
-@cli.command()
-@click.argument('templates', nargs=-1)
-def make(templates):
-    if not templates:
-        _list_templates()
-        return
-    for template in templates:
-        _make_template(template)
-
-
 def _list_templates():
     click.echo('Templates available')
-    for template in sorted(os.listdir(get_config_templates_path())):
+    for template in sorted(os.listdir(_TEMPLATES_PATH)):
         if not _template_exists(template):
             continue
 
@@ -183,13 +183,13 @@ def _template_exists(template):
         return True
     if os.path.isdir(_get_project_template_path(template)):
         return True
-    if os.path.isfile(_get_script_path(template, PRE_MAKE_FILENAME)):
+    if os.path.isfile(_get_script_path(template, _PRE_MAKE_FILENAME)):
         return True
-    if os.path.isfile(_get_script_path(template, POST_MAKE_FILENAME)):
+    if os.path.isfile(_get_script_path(template, _POST_MAKE_FILENAME)):
         return True
     return False
 
 
 def _build_template(template):
-    render = TemplateRender(get_config_templates_path())
+    render = TemplateRender(_TEMPLATES_PATH)
     TemplateBuilder(render, get_configs(), template).build()
