@@ -3,4 +3,4 @@ A tool for build project templates
 
 ## Installation
 
-`python setup.py install --user`
+Just copy `tmplt` to some place of your `PATH`.
