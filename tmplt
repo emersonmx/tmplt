@@ -1,16 +1,18 @@
 #!/bin/bash
 
 export TMPLT_CONFIG_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/tmplt"
+export TMPLT_TEMPLATES_PATH="$TMPLT_CONFIG_PATH/templates"
 
 mkdir -p $TMPLT_CONFIG_PATH
+mkdir -p $TMPLT_TEMPLATES_PATH
 
 if [[ $# -lt 1 ]]
 then
     echo "Templates availables"
-    for path in $(echo $TMPLT_CONFIG_PATH/*/)
+    for path in $(echo $TMPLT_TEMPLATES_PATH/*/)
     do
         template=$(basename $path)
-        [[ -f "$TMPLT_CONFIG_PATH/$template/setup" ]] \
+        [[ -f "$TMPLT_TEMPLATES_PATH/$template/setup" ]] \
             && echo "- $template ($path)"
     done
     exit 0
@@ -18,7 +20,7 @@ fi
 
 for template in $*
 do
-    script="$TMPLT_CONFIG_PATH/$template/setup"
+    script="$TMPLT_TEMPLATES_PATH/$template/setup"
     [[ ! -f $script ]] && echo "Invalid template \"$template\"" && exit 1
     $script
 done
