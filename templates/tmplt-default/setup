@@ -1,0 +1,6 @@
+#!/bin/bash
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+cp -fR "$script_dir/template/." "$PWD"
+mkdir -p template
