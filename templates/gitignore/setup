@@ -1,0 +1,37 @@
+#!/bin/bash
+
+GITIGNOREIO_URL="https://www.gitignore.io/api"
+
+types="$(curl -s "$GITIGNOREIO_URL/list" 2>&1 | sed -e 's/,/\n/g' | sort -u)"
+
+if [[ ! -z $(command -v fzf) ]]
+then
+    selected="$(echo -e "$types" | fzf -m | paste -sd ',' -)"
+else
+    echo "See $GITIGNOREIO_URL/list for available types"
+    read -p "Types: " selected
+fi
+
+confirm='yes'
+gitignore_path="$PWD/.gitignore"
+[[ -f $gitignore_path ]] \
+    && read -p "The gitignore file will be overwritten, do you want to continue? " confirm \
+
+case $(echo $confirm | tr '[:upper:]' '[:lower:]') in
+    yes|y )
+        result="$(curl -s "$GITIGNOREIO_URL/$selected" 2>&1)"
+
+        if [[ -z $(echo $selected | grep ',') ]]
+        then
+            result="$(echo -e "$result" | sed -e '1,/^###/ d')"
+        else
+            result="$(echo -e "$result" | sed -e '/^###/,$!d')"
+        fi
+
+        echo -e "$result" | head -n -2 > "$PWD/.gitignore"
+        ;;
+    *|"")
+        ;;
+esac
+
+echo 'Done.'
