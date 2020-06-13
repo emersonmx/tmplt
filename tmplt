@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail
+IFS=$'\n\t'
 
 export TMPLT_CONFIG_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/tmplt"
 export TMPLT_TEMPLATES_PATH="$TMPLT_CONFIG_PATH/templates"
@@ -6,21 +8,84 @@ export TMPLT_TEMPLATES_PATH="$TMPLT_CONFIG_PATH/templates"
 mkdir -p $TMPLT_CONFIG_PATH
 mkdir -p $TMPLT_TEMPLATES_PATH
 
-if [[ $# -lt 1 ]]
+cli_name='tmplt'
+author='Emerson Max de Medeiros Silva'
+version='1.0'
+
+function cli_help() {
+    echo "Usage: $cli_name [command]
+
+Template generator
+
+commands:
+    make       Make templates
+    list       List all available templates
+    help       Show this help
+    version    Show version
+"
+}
+
+if [[ $# < 1 ]]
 then
-    echo "Templates availables"
-    for path in $(echo $TMPLT_TEMPLATES_PATH/*/)
-    do
-        template=$(basename $path)
-        [[ -f "$TMPLT_TEMPLATES_PATH/$template/setup" ]] \
-            && echo "- $template ($path)"
-    done
-    exit 0
+    cli_help
+    exit 1
 fi
 
-for template in $*
-do
+function make_cmd() {
+    if [[ $# == 0 ]]
+    then
+        echo "Usage: $cli_name make <templates>"
+        exit 1
+    fi
+
+    for template in $@
+    do
+        make_template $template
+    done
+}
+
+function make_template() {
+    template="$1"
     script="$TMPLT_TEMPLATES_PATH/$template/setup"
     [[ ! -f $script ]] && echo "Invalid template \"$template\"" && exit 1
     $script
-done
+}
+
+function list_cmd() {
+    for path in $TMPLT_TEMPLATES_PATH/*
+    do
+        template=$(basename $path)
+        [[ -f "$TMPLT_TEMPLATES_PATH/$template/setup" ]] \
+            && echo "$template"
+    done
+}
+
+function help_cmd() {
+    cli_help
+    exit 0
+}
+
+function version_cmd() {
+    echo "$cli_name $version"
+}
+
+action="$1"
+shift 1
+case $action in
+    make)
+        make_cmd $@
+        ;;
+    list)
+        list_cmd
+        ;;
+    help)
+        help_cmd
+        ;;
+    version)
+        version_cmd
+        ;;
+    *)
+        echo -e "Invalid command '$action'\n"
+        cli_help
+        ;;
+esac
